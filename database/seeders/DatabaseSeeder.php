@@ -13,19 +13,24 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        User::create([
-            'name' => 'Admin',
-            'apellido' => 'Sistema',
-            'email' => 'admin@mediconsult.com',
-            'password' => bcrypt('admin123'),
-            'dni' => '00000001',
-            'rol' => 'admin',
-            'telefono' => '999999999',
-        ]);
+        User::firstOrCreate(
+            ['email' => 'admin@mediconsult.com'],
+            [
+                'name' => 'Admin',
+                'apellido' => 'Sistema',
+                'password' => bcrypt('admin123'),
+                'dni' => '00000001',
+                'rol' => 'admin',
+                'telefono' => '999999999',
+            ]
+        );
 
         $alergias = ['Penicilina', 'Ibuprofeno', 'Sulfas', 'Aspirina', 'Paracetamol', 'Amoxicilina', 'Naproxeno', 'Codeína', 'Morfina', 'Insulina'];
         foreach ($alergias as $a) {
-            AlergiaCatalogo::create(['nombre' => $a, 'tipo' => 'medicamento']);
+            AlergiaCatalogo::firstOrCreate(
+                ['nombre' => $a],
+                ['tipo' => 'medicamento']
+            );
         }
 
         $enfermedades = [
@@ -41,7 +46,10 @@ class DatabaseSeeder extends Seeder
             ['nombre' => 'EPOC', 'descripcion' => 'Enfermedad pulmonar obstructiva crónica'],
         ];
         foreach ($enfermedades as $e) {
-            EnfermedadCatalogo::create($e);
+            EnfermedadCatalogo::firstOrCreate(
+                ['nombre' => $e['nombre']],
+                ['descripcion' => $e['descripcion']]
+            );
         }
 
         $this->call(MedicamentoCatalogoSeeder::class);
@@ -69,7 +77,10 @@ class DatabaseSeeder extends Seeder
             ['nombre' => 'Dolor lumbar', 'categoria' => 'musculoesqueletico'],
         ];
         foreach ($sintomas as $s) {
-            SintomaCatalogo::create($s);
+            SintomaCatalogo::firstOrCreate(
+                ['nombre' => $s['nombre']],
+                ['categoria' => $s['categoria']]
+            );
         }
     }
 }

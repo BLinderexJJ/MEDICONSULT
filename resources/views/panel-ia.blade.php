@@ -21,7 +21,7 @@
             </div>
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <p class="text-sm text-gray-500 mb-1">Alertas activas</p>
-                <p class="text-3xl font-bold text-gray-900">{{ \App\Models\Alerta::where('leida', false)->count() }}</p>
+                <p class="text-3xl font-bold text-gray-900">{{ $alertasActivasCount }}</p>
             </div>
         </div>
 

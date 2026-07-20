@@ -4,11 +4,6 @@
             <a href="{{ route('medicamentos.verificador') }}" class="text-emerald-600 hover:text-emerald-700 font-medium text-sm">&larr; Volver al verificador</a>
         </div>
 
-        @php
-            $m1 = request('m1') ? \App\Models\MedicamentoCatalogo::find(request('m1')) : null;
-            $m2 = request('m2') ? \App\Models\MedicamentoCatalogo::find(request('m2')) : null;
-        @endphp
-
         @if($m1 && $m2)
             <h1 class="text-2xl font-bold text-gray-900 mb-6">Comparación: {{ $m1->nombre }} vs {{ $m2->nombre }}</h1>
 

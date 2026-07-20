@@ -70,6 +70,20 @@ class PerfilSalud extends Component
 
     public function guardar()
     {
+        $this->validate([
+            'name' => 'required|string|max:100',
+            'apellido' => 'nullable|string|max:100',
+            'dni' => 'nullable|string|max:15',
+            'telefono' => 'nullable|string|max:20',
+            'fecha_nacimiento' => 'nullable|date|before:today',
+            'sexo' => 'nullable|string|in:masculino,femenino,otro',
+            'peso' => 'nullable|numeric|min:1|max:500',
+            'altura' => 'nullable|numeric|min:0.2|max:3',
+            'alergiasSeleccionadas' => 'array',
+            'enfermedadesSeleccionadas' => 'array',
+            'medicamentosSeleccionados' => 'array',
+        ]);
+
         $user = auth()->user();
 
         $user->update([

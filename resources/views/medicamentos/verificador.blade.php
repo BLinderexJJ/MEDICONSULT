@@ -5,23 +5,18 @@
             <p class="text-gray-500 mt-1">Consulta información y compatibilidad de medicamentos</p>
         </div>
 
-        @php
-            $medicamentos = \App\Models\MedicamentoCatalogo::all();
-            $user = auth()->user();
-        @endphp
-
         <div class="grid md:grid-cols-2 gap-6">
             {{-- Buscador y lista --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 class="font-semibold text-gray-900 mb-4">Buscar medicamento</h3>
                 <form method="GET" class="mb-4">
-                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Ej: Paracetamol..." 
+                    <input type="text" name="q" value="{{ $query }}" placeholder="Ej: Paracetamol..." 
                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
                 </form>
                 <div class="space-y-2 max-h-96 overflow-y-auto">
-                    @foreach(\App\Models\MedicamentoCatalogo::when(request('q'), fn($q) => $q->where('nombre', 'like', '%'.request('q').'%'))->get() as $med)
+                    @foreach($medicamentosLista as $med)
                         <a href="{{ route('medicamentos.verificador', ['q' => $med->nombre]) }}" 
-                           class="block px-4 py-3 rounded-lg hover:bg-gray-50 transition {{ request('q') === $med->nombre ? 'bg-emerald-50 border border-emerald-200' : 'border border-transparent' }}">
+                           class="block px-4 py-3 rounded-lg hover:bg-gray-50 transition {{ $query === $med->nombre ? 'bg-emerald-50 border border-emerald-200' : 'border border-transparent' }}">
                             <p class="font-medium text-gray-900">{{ $med->nombre }}</p>
                             <p class="text-sm text-gray-500">{{ $med->principio_activo }}</p>
                         </a>
@@ -31,10 +26,6 @@
 
             {{-- Detalle --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                @php
-                    $medDetalle = request('q') ? \App\Models\MedicamentoCatalogo::where('nombre', request('q'))->first() : null;
-                @endphp
-
                 @if($medDetalle)
                     <h3 class="text-xl font-bold text-gray-900 mb-2">{{ $medDetalle->nombre }}</h3>
                     <p class="text-sm text-emerald-600 font-medium mb-4">Principio activo: {{ $medDetalle->principio_activo }}</p>
@@ -74,24 +65,6 @@
                         {{-- Compatibilidad con perfil --}}
                         <div class="border-t border-gray-100 pt-4 mt-4">
                             <h4 class="font-semibold text-gray-900 mb-3">Compatibilidad con tu perfil</h4>
-                            @php
-                                $compatible = true;
-                                $incompatibilidades = [];
-                                foreach ($user->alergias as $alergia) {
-                                    if (stripos($medDetalle->nombre, $alergia->nombre) !== false || stripos($medDetalle->principio_activo, $alergia->nombre) !== false) {
-                                        $compatible = false;
-                                        $incompatibilidades[] = "Alergia a {$alergia->nombre}";
-                                    }
-                                }
-                                if ($medDetalle->contraindicaciones) {
-                                    foreach ($user->enfermedades as $enf) {
-                                        if (stripos($medDetalle->contraindicaciones, $enf->nombre) !== false) {
-                                            $compatible = false;
-                                            $incompatibilidades[] = "Contraindicado en {$enf->nombre}";
-                                        }
-                                    }
-                                }
-                            @endphp
 
                             @if($compatible)
                                 <div class="flex items-center space-x-2 text-green-700 bg-green-50 p-3 rounded-lg">
@@ -125,13 +98,13 @@
             <form method="GET" action="{{ route('medicamentos.comparador') }}" class="grid md:grid-cols-2 gap-4">
                 <select name="m1" class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
                     <option value="">Seleccionar medicamento 1</option>
-                    @foreach($medicamentos as $m)
+                    @foreach($medicamentosCatalogo as $m)
                         <option value="{{ $m->id }}">{{ $m->nombre }}</option>
                     @endforeach
                 </select>
                 <select name="m2" class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
                     <option value="">Seleccionar medicamento 2</option>
-                    @foreach($medicamentos as $m)
+                    @foreach($medicamentosCatalogo as $m)
                         <option value="{{ $m->id }}">{{ $m->nombre }}</option>
                     @endforeach
                 </select>

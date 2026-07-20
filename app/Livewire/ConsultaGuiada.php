@@ -48,12 +48,15 @@ class ConsultaGuiada extends Component
             'sintomasSeleccionados' => 'required|min:1',
         ]);
 
-        $user = auth()->user();
-        $sintomasNombres = collect($this->sintomasSeleccionados)
-            ->map(fn($id) => SintomaCatalogo::find($id)?->nombre)
-            ->filter();
+        $user = auth()->user()->load('enfermedades');
 
-        $riesgo = $this->calcularRiesgo();
+        // Pre-cargar todos los síntomas en una sola query (fix N+1)
+        $sintomasMap = SintomaCatalogo::whereIn('id', $this->sintomasSeleccionados)
+            ->pluck('nombre', 'id');
+
+        $sintomasNombres = $sintomasMap->values()->filter();
+
+        $riesgo = $this->calcularRiesgo($user);
         $causas = $this->generarCausas($sintomasNombres);
         $recomendaciones = $this->generarRecomendaciones($riesgo, $sintomasNombres);
 
@@ -71,7 +74,7 @@ class ConsultaGuiada extends Component
             ConsultaSintoma::create([
                 'consulta_id' => $consulta->id,
                 'sintoma_id' => $sintomaId,
-                'nombre_sintoma' => SintomaCatalogo::find($sintomaId)?->nombre ?? 'desconocido',
+                'nombre_sintoma' => $sintomasMap[$sintomaId] ?? 'desconocido',
                 'intensidad' => $this->intensidad,
                 'duracion_dias' => $this->duracion ? (int)$this->duracion : null,
             ]);
@@ -82,9 +85,9 @@ class ConsultaGuiada extends Component
         $this->paso = 2;
     }
 
-    private function calcularRiesgo()
+    private function calcularRiesgo($user = null)
     {
-        $user = auth()->user();
+        $user = $user ?? auth()->user()->load('enfermedades');
         $score = count($this->sintomasSeleccionados);
 
         if ($this->intensidad === 'severo') $score += 2;
@@ -127,7 +130,7 @@ class ConsultaGuiada extends Component
     public function render()
     {
         $categorias = SintomaCatalogo::select('categoria')->distinct()->whereNotNull('categoria')->get();
-        $sintomas = $this->categoriaActual 
+        $sintomas = $this->categoriaActual
             ? SintomaCatalogo::where('categoria', $this->categoriaActual)->get()
             : SintomaCatalogo::all();
         return view('livewire.consulta-guiada', compact('categorias', 'sintomas'));

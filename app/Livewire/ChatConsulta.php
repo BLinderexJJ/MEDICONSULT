@@ -23,12 +23,14 @@ class ChatConsulta extends Component
 
     public function mount()
     {
+        $user = auth()->user()->load(['enfermedades', 'alergias']);
+
         $this->mensajes[] = [
             'tipo' => 'bot',
             'texto' => '¡Hola! Soy el asistente médico de MediConsult. Describe tus síntomas para recibir orientación preliminar.',
         ];
 
-        if (auth()->user()->enfermedades->count() > 0 || auth()->user()->alergias->count() > 0) {
+        if ($user->enfermedades->count() > 0 || $user->alergias->count() > 0) {
             $this->mensajes[] = [
                 'tipo' => 'bot',
                 'texto' => 'He revisado tu perfil clínico. Tomaré en cuenta tus condiciones preexistentes y alergias durante el análisis.',
@@ -86,14 +88,16 @@ class ChatConsulta extends Component
 
     public function analizarConsulta()
     {
-        $user = auth()->user();
+        $user = auth()->user()->load(['enfermedades', 'alergias']);
 
-        $sintomasTexto = collect($this->sintomasSeleccionados)
-            ->map(fn($id) => SintomaCatalogo::find($id)?->nombre)
-            ->filter()->implode(', ');
+        // Pre-cargar todos los síntomas seleccionados en una sola query (fix N+1)
+        $sintomasMap = SintomaCatalogo::whereIn('id', $this->sintomasSeleccionados)
+            ->pluck('nombre', 'id');
 
-        $riesgo = $this->calcularRiesgo();
-        $causas = $this->generarCausas();
+        $sintomasTexto = $sintomasMap->values()->filter()->implode(', ');
+
+        $riesgo = $this->calcularRiesgo($user);
+        $causas = $this->generarCausas($sintomasMap);
         $recomendaciones = $this->generarRecomendaciones($riesgo);
 
         $consulta = Consulta::create([
@@ -110,7 +114,7 @@ class ChatConsulta extends Component
             ConsultaSintoma::create([
                 'consulta_id' => $consulta->id,
                 'sintoma_id' => $sintomaId,
-                'nombre_sintoma' => SintomaCatalogo::find($sintomaId)?->nombre ?? 'desconocido',
+                'nombre_sintoma' => $sintomasMap[$sintomaId] ?? 'desconocido',
                 'intensidad' => $this->intensidades[$sintomaId] ?? 'moderado',
                 'duracion_dias' => $this->duraciones[$sintomaId] ?? null,
             ]);
@@ -129,9 +133,9 @@ class ChatConsulta extends Component
         ];
     }
 
-    private function calcularRiesgo()
+    private function calcularRiesgo($user = null)
     {
-        $user = auth()->user();
+        $user = $user ?? auth()->user()->load('enfermedades');
         $score = 0;
 
         $palabrasAltoRiesgo = ['dificultad respirar', 'dolor pecho', 'desmayo', 'convulsión', 'sangrado', 'fiebre alta', 'vómito sangre'];
@@ -150,7 +154,7 @@ class ChatConsulta extends Component
         return 'bajo';
     }
 
-    private function generarCausas()
+    private function generarCausas($sintomasMap = null)
     {
         $causas = [];
 
@@ -173,11 +177,13 @@ class ChatConsulta extends Component
             }
         }
 
-        foreach ($this->sintomasSeleccionados as $sintomaId) {
-            $sintoma = SintomaCatalogo::find($sintomaId);
-            if ($sintoma && isset($mapaSintomas[strtolower($sintoma->nombre)])) {
-                $causa = $mapaSintomas[strtolower($sintoma->nombre)];
-                if (!in_array($causa, $causas)) $causas[] = $causa;
+        // Usar el mapa pre-cargado en lugar de find() individual
+        if ($sintomasMap) {
+            foreach ($sintomasMap as $id => $nombre) {
+                if ($nombre && isset($mapaSintomas[strtolower($nombre)])) {
+                    $causa = $mapaSintomas[strtolower($nombre)];
+                    if (!in_array($causa, $causas)) $causas[] = $causa;
+                }
             }
         }
 

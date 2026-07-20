@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ConsultaController;
 use App\Http\Controllers\SeguimientoController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\MedicamentoController;
 
 Route::view('/', 'welcome')->name('welcome');
 
@@ -28,12 +29,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('/seguimiento', 'seguimiento')->name('seguimiento');
     Route::post('/seguimiento', [SeguimientoController::class, 'store'])->name('seguimiento.store');
 
-    // Alerts
-    Route::view('/alertas', 'alertas')->name('alertas');
+    // Alerts (paginated via controller + mark as read)
+    Route::get('/alertas', function () {
+        $alertas = auth()->user()->alertas()->latest()->paginate(15);
+        return view('alertas', compact('alertas'));
+    })->name('alertas');
 
-    // Medicines
-    Route::view('/medicamentos/verificador', 'medicamentos/verificador')->name('medicamentos.verificador');
-    Route::view('/medicamentos/comparador', 'medicamentos/comparador')->name('medicamentos.comparador');
+    Route::post('/alertas/marcar-leidas', function () {
+        auth()->user()->alertas()->where('leida', false)->update(['leida' => true]);
+        return back()->with('success', 'Todas las alertas marcadas como leídas');
+    })->name('alertas.marcar-leidas');
+
+    // Medicines (via controller instead of Route::view)
+    Route::get('/medicamentos/verificador', [MedicamentoController::class, 'verificador'])->name('medicamentos.verificador');
+    Route::get('/medicamentos/comparador', [MedicamentoController::class, 'comparador'])->name('medicamentos.comparador');
     Route::view('/medicamentos/biblioteca', 'medicamentos/biblioteca')->name('medicamentos.biblioteca');
 
     // Disease Library
@@ -56,12 +65,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/enfermedades/{enfermedad}', [AdminController::class, 'enfermedadesDestroy'])->name('enfermedades.destroy');
     });
 
-    // AI Panel
+    // AI Panel (query moved to controller closure — fix BUG-06 orphan query)
     Route::middleware('admin')->group(function () {
         Route::get('/panel-ia', function () {
             $userCount = \App\Models\User::count();
             $consultaCount = \App\Models\Consulta::count();
             $alertasCount = \App\Models\Alerta::count();
+            $alertasActivasCount = \App\Models\Alerta::where('leida', false)->count();
             $sintomasFrecuentes = \App\Models\ConsultaSintoma::select('nombre_sintoma', \Illuminate\Support\Facades\DB::raw('count(*) as total'))
                 ->groupBy('nombre_sintoma')
                 ->orderByDesc('total')
@@ -71,7 +81,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->groupBy('nivel_riesgo')
                 ->get();
 
-            return view('panel-ia', compact('userCount', 'consultaCount', 'alertasCount', 'sintomasFrecuentes', 'riesgos'));
+            return view('panel-ia', compact('userCount', 'consultaCount', 'alertasCount', 'alertasActivasCount', 'sintomasFrecuentes', 'riesgos'));
         })->name('panel-ia');
     });
 });
